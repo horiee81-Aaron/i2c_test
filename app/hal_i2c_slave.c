@@ -1,4 +1,4 @@
-#include "hal_i2c.h"
+#include "hal_i2c_slave.h"
 #include "hal_scheduler.h"
 #include "r_config_iica0.h"
 
@@ -153,7 +153,7 @@ static void hal_i2c_report_error(hal_i2c_error_t code, uint8_t hw_flags, bool dr
     }
 }
 
-void HAL_I2C_Init(hal_i2c_error_callback_t error_cb)
+void HAL_I2C_S_Init(hal_i2c_error_callback_t error_cb)
 {
     g_i2c_ctx.head           = 0U;
     g_i2c_ctx.tail           = 0U;
@@ -165,14 +165,14 @@ void HAL_I2C_Init(hal_i2c_error_callback_t error_cb)
     hal_i2c_rearm_hardware();
 }
 
-void HAL_I2C_ResetSlave(void)
+void HAL_I2C_S_Reset(void)
 {
     hal_i2c_rearm_hardware();
     hal_i2c_clear_response();
     hal_i2c_reset_current_message();
 }
 
-bool HAL_I2C_PopMessage(hal_i2c_message_t *message)
+bool HAL_I2C_S_PopMessage(hal_i2c_message_t *message)
 {
     bool has_message = false;
 
@@ -191,7 +191,7 @@ bool HAL_I2C_PopMessage(hal_i2c_message_t *message)
     return has_message;
 }
 
-bool HAL_I2C_SetSlaveResponse(const uint8_t *payload, uint8_t length)
+bool HAL_I2C_S_SetResponse(const uint8_t *payload, uint8_t length)
 {
     bool success = false;
 
@@ -216,7 +216,7 @@ bool HAL_I2C_SetSlaveResponse(const uint8_t *payload, uint8_t length)
     return success;
 }
 
-bool HAL_I2C_GetSlaveResponse(const uint8_t **payload, uint8_t *length)
+bool HAL_I2C_S_GetResponse(const uint8_t **payload, uint8_t *length)
 {
     bool has_payload = false;
 
@@ -242,14 +242,14 @@ bool HAL_I2C_GetSlaveResponse(const uint8_t **payload, uint8_t *length)
     return has_payload;
 }
 
-void HAL_I2C_ClearSlaveResponse(void)
+void HAL_I2C_S_ClearResponse(void)
 {
     hal_i2c_clear_response();
 }
 
 
 
-void HAL_I2C_OnStartCondition(uint8_t hw_status_flags)
+void HAL_I2C_S_OnStartCondition(uint8_t hw_status_flags)
 {
     g_i2c_ctx.receiving                = true;
     g_i2c_ctx.current.length           = 0U;
@@ -258,7 +258,7 @@ void HAL_I2C_OnStartCondition(uint8_t hw_status_flags)
     g_i2c_ctx.current.timestamp_ms     = UINT32_C(0);
 }
 
-void HAL_I2C_OnByteReceived(uint8_t data)
+void HAL_I2C_S_OnByteReceived(uint8_t data)
 {
     if (g_i2c_ctx.receiving != false)
     {
@@ -271,7 +271,7 @@ void HAL_I2C_OnByteReceived(uint8_t data)
         else
         {
             hal_i2c_report_error(HAL_I2C_ERR_OVERRUN, g_i2c_ctx.current.hw_status_flags, true);
-            HAL_I2C_ResetSlave();
+            HAL_I2C_S_Reset();
         }
     }
     else
@@ -280,7 +280,7 @@ void HAL_I2C_OnByteReceived(uint8_t data)
     }
 }
 
-void HAL_I2C_OnStopCondition(uint8_t hw_status_flags)
+void HAL_I2C_S_OnStopCondition(uint8_t hw_status_flags)
 {
     if (g_i2c_ctx.receiving != false)
     {
@@ -307,7 +307,7 @@ void HAL_I2C_OnStopCondition(uint8_t hw_status_flags)
     }
 }
 
-void HAL_I2C_OnHardwareError(uint8_t hw_status_flags)
+void HAL_I2C_S_OnHardwareError(uint8_t hw_status_flags)
 {
     const hal_i2c_error_t mapped = hal_i2c_map_error(hw_status_flags);
 
@@ -320,10 +320,10 @@ void HAL_I2C_OnHardwareError(uint8_t hw_status_flags)
         /* No action required */
     }
 
-    HAL_I2C_ResetSlave();
+    HAL_I2C_S_Reset();
 }
 
-void HAL_I2C_Tick1ms(void)
+void HAL_I2C_S_Tick1ms(void)
 {
     if (g_i2c_ctx.receiving != false)
     {
@@ -339,7 +339,7 @@ void HAL_I2C_Tick1ms(void)
         if (g_i2c_ctx.in_frame_ticks >= HAL_I2C_SLAVE_TIMEOUT_MS)
         {
             hal_i2c_report_error(HAL_I2C_ERR_TIMEOUT, g_i2c_ctx.current.hw_status_flags, true);
-            HAL_I2C_ResetSlave();
+            HAL_I2C_S_Reset();
         }
         else
         {

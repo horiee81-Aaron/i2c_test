@@ -5,6 +5,7 @@
 
 typedef struct
 {
+    uint32_t reset_bus_lines_calls;
     uint32_t stop_calls;
     uint32_t create_calls;
     uint32_t start_calls;

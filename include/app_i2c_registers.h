@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "hal_i2c.h"
+#include "hal_i2c_slave.h"
 
 #define APP_I2C_REG_ADDR_HW_VERSION    (0x01U)
 #define APP_I2C_REG_ADDR_SW_VERSION    (0x02U)

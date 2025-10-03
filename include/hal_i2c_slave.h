@@ -1,5 +1,5 @@
-#ifndef HAL_I2C_H
-#define HAL_I2C_H
+#ifndef HAL_I2C_SLAVE_H
+#define HAL_I2C_SLAVE_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -38,22 +38,22 @@ typedef struct
 
 typedef void (*hal_i2c_error_callback_t)(const hal_i2c_error_context_t *context);
 
-void HAL_I2C_Init(hal_i2c_error_callback_t error_cb);
-void HAL_I2C_ResetSlave(void);
+void HAL_I2C_S_Init(hal_i2c_error_callback_t error_cb);
+void HAL_I2C_S_Reset(void);
 
-bool HAL_I2C_PopMessage(hal_i2c_message_t *message);
+bool HAL_I2C_S_PopMessage(hal_i2c_message_t *message);
 
-bool HAL_I2C_SetSlaveResponse(const uint8_t *payload, uint8_t length);
-bool HAL_I2C_GetSlaveResponse(const uint8_t **payload, uint8_t *length);
-void HAL_I2C_ClearSlaveResponse(void);
+bool HAL_I2C_S_SetResponse(const uint8_t *payload, uint8_t length);
+bool HAL_I2C_S_GetResponse(const uint8_t **payload, uint8_t *length);
+void HAL_I2C_S_ClearResponse(void);
 
 
-void HAL_I2C_OnStartCondition(uint8_t hw_status_flags);
-void HAL_I2C_OnByteReceived(uint8_t data);
-void HAL_I2C_OnStopCondition(uint8_t hw_status_flags);
-void HAL_I2C_OnHardwareError(uint8_t hw_status_flags);
+void HAL_I2C_S_OnStartCondition(uint8_t hw_status_flags);
+void HAL_I2C_S_OnByteReceived(uint8_t data);
+void HAL_I2C_S_OnStopCondition(uint8_t hw_status_flags);
+void HAL_I2C_S_OnHardwareError(uint8_t hw_status_flags);
 
-void HAL_I2C_Tick1ms(void);
+void HAL_I2C_S_Tick1ms(void);
 
-#endif /* HAL_I2C_H */
+#endif /* I2C_SLAVE_H */
 

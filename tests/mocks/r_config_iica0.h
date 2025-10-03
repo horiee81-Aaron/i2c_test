@@ -10,6 +10,7 @@
 #define R_IICA0_STATUS_LINE_STUCK       (1U << 4)
 #define R_IICA0_STATUS_FRAME_ERROR      (1U << 5)
 
+void R_Config_IICA0_ResetBusLines(void);
 void R_Config_IICA0_Stop(void);
 void R_Config_IICA0_Create(void);
 void R_Config_IICA0_Start(void);

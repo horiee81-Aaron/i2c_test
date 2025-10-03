@@ -1,4 +1,4 @@
-#include "hal_i2c.h"
+#include "hal_i2c_slave.h"
 #include "mock_hal_scheduler.h"
 #include "mock_r_config_iica0.h"
 #include "r_config_iica0.h"
@@ -45,7 +45,7 @@ static void test_setup(void)
     reset_test_observers();
     MOCK_R_Config_IICA0_Reset();
     MOCK_HAL_SCHED_Reset();
-    HAL_I2C_Init(test_error_callback);
+    HAL_I2C_S_Init(test_error_callback);
 }
 
 #define TEST_ASSERT(expr)                                                                 \
@@ -71,21 +71,21 @@ static void test_init_rearms_hardware(void)
     TEST_ASSERT(g_recorded_error_count == 0U);
     TEST_ASSERT(g_error_overflow == false);
     hal_i2c_message_t message;
-    TEST_ASSERT(HAL_I2C_PopMessage(&message) == false);
+    TEST_ASSERT(HAL_I2C_S_PopMessage(&message) == false);
 }
 
 static void test_message_buffering_and_pop(void)
 {
     test_setup();
     MOCK_HAL_SCHED_SetUptime(100U);
-    HAL_I2C_OnStartCondition(0x11U);
-    HAL_I2C_OnByteReceived(0xA0U);
-    HAL_I2C_OnByteReceived(0x0FU);
+    HAL_I2C_S_OnStartCondition(0x11U);
+    HAL_I2C_S_OnByteReceived(0xA0U);
+    HAL_I2C_S_OnByteReceived(0x0FU);
     MOCK_HAL_SCHED_SetUptime(250U);
-    HAL_I2C_OnStopCondition(0x05U);
+    HAL_I2C_S_OnStopCondition(0x05U);
 
     hal_i2c_message_t message;
-    TEST_ASSERT(HAL_I2C_PopMessage(&message) == true);
+    TEST_ASSERT(HAL_I2C_S_PopMessage(&message) == true);
     TEST_ASSERT(message.length == 2U);
     TEST_ASSERT(message.data[0] == 0xA0U);
     TEST_ASSERT(message.data[1] == 0x0FU);
@@ -99,19 +99,19 @@ static void test_slave_response_set_get_clear(void)
     test_setup();
     const uint8_t response[] = { 0x10U, 0x20U, 0x30U };
 
-    TEST_ASSERT(HAL_I2C_SetSlaveResponse(response, (uint8_t)sizeof response) == true);
+    TEST_ASSERT(HAL_I2C_S_SetResponse(response, (uint8_t)sizeof response) == true);
 
     const uint8_t *payload = NULL;
     uint8_t length = 0U;
-    TEST_ASSERT(HAL_I2C_GetSlaveResponse(&payload, &length) == true);
+    TEST_ASSERT(HAL_I2C_S_GetResponse(&payload, &length) == true);
     TEST_ASSERT(length == (uint8_t)sizeof response);
     TEST_ASSERT(payload != NULL);
     TEST_ASSERT(memcmp(payload, response, sizeof response) == 0);
 
-    HAL_I2C_ClearSlaveResponse();
+    HAL_I2C_S_ClearResponse();
     payload = (const uint8_t *)0x1U;
     length = 255U;
-    TEST_ASSERT(HAL_I2C_GetSlaveResponse(&payload, &length) == false);
+    TEST_ASSERT(HAL_I2C_S_GetResponse(&payload, &length) == false);
     TEST_ASSERT(payload == NULL);
     TEST_ASSERT(length == 0U);
 }
@@ -120,10 +120,10 @@ static void test_slave_response_rejects_invalid_length(void)
 {
     test_setup();
     const uint8_t response[HAL_I2C_MESSAGE_MAX_BYTES + 1U] = {0};
-    TEST_ASSERT(HAL_I2C_SetSlaveResponse(response, (uint8_t)(HAL_I2C_MESSAGE_MAX_BYTES + 1U)) == false);
+    TEST_ASSERT(HAL_I2C_S_SetResponse(response, (uint8_t)(HAL_I2C_MESSAGE_MAX_BYTES + 1U)) == false);
     const uint8_t *payload = (const uint8_t *)0x2U;
     uint8_t length = 123U;
-    TEST_ASSERT(HAL_I2C_GetSlaveResponse(&payload, &length) == false);
+    TEST_ASSERT(HAL_I2C_S_GetResponse(&payload, &length) == false);
     TEST_ASSERT(payload == NULL);
     TEST_ASSERT(length == 0U);
 }
@@ -132,15 +132,15 @@ static void test_overrun_on_long_message_triggers_reset(void)
 {
     test_setup();
     MOCK_HAL_SCHED_SetUptime(10U);
-    HAL_I2C_OnStartCondition(0x00U);
+    HAL_I2C_S_OnStartCondition(0x00U);
 
     for (uint8_t index = 0U; index < HAL_I2C_MESSAGE_MAX_BYTES; index++)
     {
-        HAL_I2C_OnByteReceived(index);
+        HAL_I2C_S_OnByteReceived(index);
     }
 
     const mock_r_config_iica0_state_t before = *MOCK_R_Config_IICA0_GetState();
-    HAL_I2C_OnByteReceived(0xFFU);
+    HAL_I2C_S_OnByteReceived(0xFFU);
     const mock_r_config_iica0_state_t after = *MOCK_R_Config_IICA0_GetState();
 
     TEST_ASSERT(after.stop_calls == (before.stop_calls + 1U));
@@ -155,13 +155,13 @@ static void test_overrun_on_long_message_triggers_reset(void)
 static void test_timeout_during_reception(void)
 {
     test_setup();
-    HAL_I2C_OnStartCondition(0x00U);
-    HAL_I2C_OnByteReceived(0x01U);
+    HAL_I2C_S_OnStartCondition(0x00U);
+    HAL_I2C_S_OnByteReceived(0x01U);
 
     for (uint8_t tick = 0U; tick < HAL_I2C_SLAVE_TIMEOUT_MS; tick++)
     {
         MOCK_HAL_SCHED_Advance(1U);
-        HAL_I2C_Tick1ms();
+        HAL_I2C_S_Tick1ms();
     }
 
     TEST_ASSERT(g_recorded_error_count == 1U);
@@ -173,12 +173,12 @@ static void test_hardware_error_mapping(void)
 {
     test_setup();
 
-    HAL_I2C_OnHardwareError(R_IICA0_STATUS_BUS_ERROR);
-    HAL_I2C_OnHardwareError(R_IICA0_STATUS_ARBITRATION_LOST);
-    HAL_I2C_OnHardwareError(R_IICA0_STATUS_OVERRUN);
-    HAL_I2C_OnHardwareError(R_IICA0_STATUS_NACK);
-    HAL_I2C_OnHardwareError(R_IICA0_STATUS_LINE_STUCK);
-    HAL_I2C_OnHardwareError(R_IICA0_STATUS_FRAME_ERROR);
+    HAL_I2C_S_OnHardwareError(R_IICA0_STATUS_BUS_ERROR);
+    HAL_I2C_S_OnHardwareError(R_IICA0_STATUS_ARBITRATION_LOST);
+    HAL_I2C_S_OnHardwareError(R_IICA0_STATUS_OVERRUN);
+    HAL_I2C_S_OnHardwareError(R_IICA0_STATUS_NACK);
+    HAL_I2C_S_OnHardwareError(R_IICA0_STATUS_LINE_STUCK);
+    HAL_I2C_S_OnHardwareError(R_IICA0_STATUS_FRAME_ERROR);
 
     TEST_ASSERT(g_recorded_error_count == 6U);
     TEST_ASSERT(g_recorded_errors[0].code == HAL_I2C_ERR_BUS_ERROR);
@@ -195,14 +195,14 @@ static void test_ring_buffer_overflow_reports_error(void)
 
     for (uint8_t count = 0U; count < HAL_I2C_RING_CAPACITY; count++)
     {
-        HAL_I2C_OnStartCondition(0x00U);
-        HAL_I2C_OnByteReceived((uint8_t)(0x10U + count));
-        HAL_I2C_OnStopCondition(0x00U);
+        HAL_I2C_S_OnStartCondition(0x00U);
+        HAL_I2C_S_OnByteReceived((uint8_t)(0x10U + count));
+        HAL_I2C_S_OnStopCondition(0x00U);
     }
 
-    HAL_I2C_OnStartCondition(0x00U);
-    HAL_I2C_OnByteReceived(0xAAU);
-    HAL_I2C_OnStopCondition(0x77U);
+    HAL_I2C_S_OnStartCondition(0x00U);
+    HAL_I2C_S_OnByteReceived(0xAAU);
+    HAL_I2C_S_OnStopCondition(0x77U);
 
     TEST_ASSERT(g_recorded_error_count == 1U);
     TEST_ASSERT(g_recorded_errors[0].code == HAL_I2C_ERR_OVERRUN);
@@ -211,7 +211,7 @@ static void test_ring_buffer_overflow_reports_error(void)
 
     hal_i2c_message_t message;
     uint8_t drained = 0U;
-    while (HAL_I2C_PopMessage(&message))
+    while (HAL_I2C_S_PopMessage(&message))
     {
         drained++;
     }

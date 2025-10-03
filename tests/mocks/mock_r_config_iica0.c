@@ -5,6 +5,7 @@ static mock_r_config_iica0_state_t g_state = {0};
 
 void MOCK_R_Config_IICA0_Reset(void)
 {
+    g_state.reset_bus_lines_calls = 0U;
     g_state.stop_calls = 0U;
     g_state.create_calls = 0U;
     g_state.start_calls = 0U;
@@ -14,6 +15,11 @@ void MOCK_R_Config_IICA0_Reset(void)
 const mock_r_config_iica0_state_t *MOCK_R_Config_IICA0_GetState(void)
 {
     return &g_state;
+}
+
+void R_Config_IICA0_ResetBusLines(void)
+{
+    g_state.reset_bus_lines_calls++;
 }
 
 void R_Config_IICA0_Stop(void)
